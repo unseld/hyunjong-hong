@@ -1,0 +1,1 @@
+export default function Login(){ return <form method='post' action='/api/auth/login'><h1>Login</h1><input name='email' placeholder='email' defaultValue='admin@local'/><input name='password' type='password' defaultValue='admin1234'/><button>Login</button></form>; }

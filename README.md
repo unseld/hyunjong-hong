@@ -1,91 +1,58 @@
-# PH Meta Ads Performance Dashboard (Goal-based Optimization) - MVP
+# 전자(세금)계산서 ↔ 법인통장 대사 MVP
 
-## 1) MVP 아키텍처 추천
-- **UI 우선순위:** Looker Studio
-- **백엔드 MVP:** Python 배치 스크립트(수집/진단/알림)
-- **핵심 원칙:** Goal별 KPI/임계치/진단/액션은 `config/goals.json`에서 관리
+## 구성
+- `apps/web`: Next.js App Router + API Route Handlers
+- `apps/worker`: BullMQ Worker (bankSync, invoiceStatusPoll, reconcileRematch, alertNotify)
+- `packages/db`: Prisma schema/client + seed
+- `packages/shared`: 매칭엔진/어댑터/유틸
 
-### 추천 아키텍처(최단)
-1. Meta Insights API 일별 수집 (`src/collector/meta_insights_collector.py`)
-2. 진단 엔진 실행 (`src/diagnostics/diagnostic_engine.py`)
-3. 알림 엔진 실행 (`src/alerts/alert_runner.py`)
-4. 결과를 Looker Studio 데이터 소스(시트/빅쿼리)로 연결
-
-> 상세 설계는 `docs/mvp-architecture.md` 참고
-
-## 2) 태스크 체크리스트 (실행 순서)
-- [ ] Meta 앱/토큰/광고계정 권한 준비 (`ads_read`)
-- [ ] 환경변수 설정 (`META_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`)
-- [ ] `config/goals.json`에서 KPI/임계치/규칙 검토
-- [ ] 일별 수집 실행 및 샘플 데이터 검증
-- [ ] 진단/알림 결과 JSON 생성 확인
-- [ ] Looker Studio 데이터소스 연결
-- [ ] 탭1~탭4 기본 템플릿 구성
-- [ ] 스케줄러(cron or GitHub Actions) 등록
-
-### 태스크별 코드/설정 예시
+## 실행
 ```bash
-# 1) 의존성 설치
-pip install -r requirements.txt
-
-# 2) 샘플 데이터로 MVP end-to-end 실행
-python -m src.pipeline.run_daily --goal purchase --input-csv data/sample_insights.csv --channel stdout
-
-# 3) 실제 API로 수집 (환경변수 필요)
-python -m src.collector.meta_insights_collector --date-preset yesterday --output data/insights_latest.csv
-
-# 4) Goal 변경 테스트
-python -m src.alerts.alert_runner --goal signup --input data/insights_latest.csv --channel stdout
+docker compose up -d
+cp .env.example .env
+pnpm install
+pnpm --filter @acme/db generate
+pnpm db:migrate
+pnpm db:seed
+pnpm --filter @acme/web dev
+pnpm --filter @acme/worker dev
 ```
 
-## 3) 리포 구조/초기 파일
-```text
-.
-├── config/
-│   └── goals.json
-├── data/
-│   └── sample_insights.csv
-├── docs/
-│   ├── looker-studio-template-guide.md
-│   └── mvp-architecture.md
-├── src/
-│   ├── alerts/alert_runner.py
-│   ├── collector/meta_insights_collector.py
-│   ├── diagnostics/diagnostic_engine.py
-│   └── pipeline/run_daily.py
-├── requirements.txt
-└── README.md
-```
+기본 계정: `admin@local / admin1234`
 
-## 4) 핵심 코드 설명 (데이터 수집/진단/알림)
-- **수집기(`meta_insights_collector.py`)**
-  - Meta Insights API 호출
-  - breakdown(placement/age/gender/region) 수집
-  - 액션 배열을 평탄화해 signups/purchases/profile_visits 등 컬럼 생성
-  - API 실패 시 `--input-csv` fallback 지원
+## 어댑터
+- 세금계산서
+  - 기본: `MockTaxProvider`
+  - 실연동 골격: `RealTaxProviderSkeleton` (ENV + 요청/응답/에러흐름 + TODO)
+- 은행
+  - 기본: `MockBankAdapter`
+  - 실연동 골격: `OpenBankingSkeleton` (`fintech_use_num`, `access_token` 기반)
 
-- **진단 엔진(`diagnostic_engine.py`)**
-  - `goals.json` 로딩
-  - rolling 7일 기준 컨텍스트 구성
-  - Goal별 파생지표 계산(cpa/cvr/roas 등)
-  - Goal별 diagnostic rule + global alert rule 평가
+## 매칭 로직
+- 후보군: 인보이스 유형별 입출금 방향 필터 + base_date ± N일
+- 점수식: 요구사항의 amount/date/name/memo/ambiguity penalty 공식 구현
+- 자동확정: threshold + margin + amount exact 조건
+- 상태: UNMATCHED / PARTIAL_MATCHED / FULL_MATCHED / HOLD / EXCEPTION
+- reasons JSON 저장
 
-- **알림 엔진(`alert_runner.py`)**
-  - 진단 결과를 JSON으로 저장
-  - 채널별 sender 라우팅(stdout/slack/email placeholder)
+## 주요 API
+- 인증: `/api/auth/login|logout|me`
+- 거래처: `/api/partners`
+- 계좌: `/api/bank-accounts`, `/api/bank-accounts/:id/sync`
+- 거래내역 조회: `/api/bank-transactions`
+- 인보이스: `/api/invoices`, `/api/invoices/:id/issue`, `/api/invoices/:id/suggestions`
+- 매칭: `/api/matches/confirm|partial|allocate|hold|exception|rematch`
+- 리포트: `/api/reports/monthly?month=YYYY-MM&format=csv`
+- 감사로그: `/api/audit-logs`
 
-- **오케스트레이터(`run_daily.py`)**
-  - 수집 → 진단/알림 순서 실행
-  - 단일 명령으로 일별 파이프라인 실행
+## 화면
+`/login`, `/dashboard`, `/invoices/sales`, `/invoices/sales/new`, `/invoices/sales/[id]`, `/bank-accounts`, `/bank-accounts/[id]/transactions`, `/reconcile`, `/reports/monthly`, `/admin/users`, `/admin/rules`, `/admin/audit`
 
-## 운영 가이드: Goal 추가/변경
-1. `config/goals.json`의 `goals`에 새 Goal 키 추가(예: `lead`)
-2. `primary_kpis`, `derived_metrics`, `thresholds`, `diagnostic_rules` 정의
-3. 배치 재실행
-4. Looker Studio Goal 파라미터 옵션에 Goal 추가
-
-## 빠른 시작
+## 테스트
 ```bash
-pip install -r requirements.txt
-python -m src.pipeline.run_daily --goal purchase --input-csv data/sample_insights.csv --channel stdout
+pnpm --filter @acme/shared test
 ```
+
+## Phase4 skeleton
+- 조합 매칭 자동추천: worker `reconcileRematch` TODO + 테스트 스텁 기반 확장
+- 미수/미지급 알림: `alertNotify` Slack webhook 구현, 메일은 skeleton

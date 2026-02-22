@@ -1,0 +1,17 @@
+{
+  "name": "@acme/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo worker lint ok"
+  },
+  "dependencies": {
+    "@acme/db": "workspace:*",
+    "@acme/shared": "workspace:*",
+    "bullmq": "^5.17.0",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {"tsx":"^4.19.1","typescript":"^5.6.2"}
+}
