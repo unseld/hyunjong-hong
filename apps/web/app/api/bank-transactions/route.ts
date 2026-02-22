@@ -1,0 +1,3 @@
+import { prisma } from '@acme/db'; import { NextResponse } from 'next/server';
+export async function GET(req:Request){ const {searchParams}=new URL(req.url); const accountId=searchParams.get('accountId')||undefined; const direction=searchParams.get('direction')||undefined; const q=searchParams.get('q')||undefined; const from=searchParams.get('from'); const to=searchParams.get('to');
+const data=await prisma.bankTransaction.findMany({where:{bankAccountId:accountId,direction:direction as any,description:q?{contains:q}:undefined,trxDate:from||to?{gte:from?new Date(from):undefined,lte:to?new Date(to):undefined}:undefined}}); return NextResponse.json(data); }

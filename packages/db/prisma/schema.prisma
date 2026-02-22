@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role { ADMIN ACCOUNTING VIEWER }
+enum PartnerType { CUSTOMER VENDOR BOTH }
+enum InvoiceType { SALES PURCHASE }
+enum InvoiceStatus { DRAFT ISSUED CANCELLED MODIFIED }
+enum NtsStatus { PENDING SENT ACCEPTED REJECTED }
+enum MatchType { AUTO MANUAL }
+enum MatchStatus { PARTIAL FULL }
+enum InvoiceReconcileStatus { UNMATCHED PARTIAL_MATCHED FULL_MATCHED HOLD EXCEPTION }
+
+model Company {
+  id String @id @default(cuid())
+  name String
+  users User[]
+  partners Partner[]
+  bankAccounts BankAccount[]
+  invoices TaxInvoice[]
+  rules MatchingRuleConfig[]
+  auditLogs AuditLog[]
+  createdAt DateTime @default(now())
+}
+model User {
+  id String @id @default(cuid())
+  companyId String
+  email String @unique
+  passwordHash String
+  name String
+  company Company @relation(fields:[companyId], references:[id])
+  roles UserRole[]
+  decisions InvoiceMatch[] @relation("DecidedBy")
+  auditLogs AuditLog[]
+  createdAt DateTime @default(now())
+}
+model UserRole {
+  id String @id @default(cuid())
+  userId String
+  role Role
+  user User @relation(fields:[userId], references:[id], onDelete: Cascade)
+  @@unique([userId, role])
+}
+model Partner {
+  id String @id @default(cuid())
+  companyId String
+  type PartnerType
+  name String
+  bizNo String?
+  normalizedName String
+  company Company @relation(fields:[companyId], references:[id])
+  invoices TaxInvoice[]
+}
+model BankAccount {
+  id String @id @default(cuid())
+  companyId String
+  bankName String
+  accountNumber String
+  fintechUseNum String?
+  accessToken String?
+  status String @default("MOCK")
+  company Company @relation(fields:[companyId], references:[id])
+  transactions BankTransaction[]
+}
+model BankTransaction {
+  id String @id @default(cuid())
+  companyId String
+  bankAccountId String
+  externalTrxId String?
+  rawHash String
+  trxDate DateTime
+  amount Decimal @db.Decimal(16,2)
+  direction String
+  description String
+  balance Decimal? @db.Decimal(16,2)
+  metadata Json?
+  bankAccount BankAccount @relation(fields:[bankAccountId], references:[id])
+  suggestions MatchSuggestion[]
+  matches InvoiceMatch[]
+  @@unique([bankAccountId, externalTrxId])
+  @@unique([bankAccountId, rawHash])
+}
+model TaxInvoice {
+  id String @id @default(cuid())
+  companyId String
+  partnerId String
+  type InvoiceType
+  issueDate DateTime
+  supplyDate DateTime?
+  dueDate DateTime?
+  supplyAmount Decimal @db.Decimal(16,2)
+  taxAmount Decimal @db.Decimal(16,2)
+  totalAmount Decimal @db.Decimal(16,2)
+  status InvoiceStatus @default(DRAFT)
+  ntsStatus NtsStatus @default(PENDING)
+  reconcileStatus InvoiceReconcileStatus @default(UNMATCHED)
+  approvalNo String?
+  documentNo String?
+  providerInvoiceId String?
+  memo String?
+  company Company @relation(fields:[companyId], references:[id])
+  partner Partner @relation(fields:[partnerId], references:[id])
+  items TaxInvoiceItem[]
+  suggestions MatchSuggestion[]
+  matches InvoiceMatch[]
+}
+model TaxInvoiceItem {
+  id String @id @default(cuid())
+  invoiceId String
+  description String
+  quantity Int
+  unitPrice Decimal @db.Decimal(16,2)
+  amount Decimal @db.Decimal(16,2)
+  invoice TaxInvoice @relation(fields:[invoiceId], references:[id], onDelete: Cascade)
+}
+model MatchSuggestion {
+  id String @id @default(cuid())
+  invoiceId String
+  transactionId String
+  score Float
+  reasons Json
+  createdAt DateTime @default(now())
+  invoice TaxInvoice @relation(fields:[invoiceId], references:[id], onDelete: Cascade)
+  transaction BankTransaction @relation(fields:[transactionId], references:[id], onDelete: Cascade)
+  @@unique([invoiceId, transactionId])
+}
+model InvoiceMatch {
+  id String @id @default(cuid())
+  invoiceId String
+  transactionId String
+  matchedAmount Decimal @db.Decimal(16,2)
+  matchType MatchType
+  status MatchStatus
+  score Float?
+  decidedById String?
+  decidedAt DateTime?
+  invoice TaxInvoice @relation(fields:[invoiceId], references:[id], onDelete: Cascade)
+  transaction BankTransaction @relation(fields:[transactionId], references:[id], onDelete: Cascade)
+  decidedBy User? @relation("DecidedBy", fields:[decidedById], references:[id])
+}
+model AuditLog {
+  id String @id @default(cuid())
+  companyId String
+  userId String?
+  action String
+  payload Json
+  createdAt DateTime @default(now())
+  company Company @relation(fields:[companyId], references:[id])
+  user User? @relation(fields:[userId], references:[id])
+}
+model MatchingRuleConfig {
+  id String @id @default(cuid())
+  companyId String
+  N Int @default(7)
+  threshold Float @default(80)
+  margin Float @default(10)
+  weights Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company Company @relation(fields:[companyId], references:[id])
+}

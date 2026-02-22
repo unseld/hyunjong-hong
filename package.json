@@ -1,0 +1,13 @@
+{
+  "name": "reconcile-mvp",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:migrate": "pnpm --filter @acme/db migrate",
+    "db:seed": "pnpm --filter @acme/db seed"
+  }
+}

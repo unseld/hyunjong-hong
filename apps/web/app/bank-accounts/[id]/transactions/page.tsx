@@ -1,0 +1,2 @@
+import { prisma } from '@acme/db';
+export default async function TxPage({ params }: { params: { id: string } }) { const txs = await prisma.bankTransaction.findMany({ where:{bankAccountId:params.id} }); return <div><h1>Transactions</h1><table><tbody>{txs.map(t=><tr key={t.id}><td>{t.trxDate.toISOString().slice(0,10)}</td><td>{String(t.amount)}</td><td>{t.direction}</td><td>{t.description}</td></tr>)}</tbody></table></div>; }
