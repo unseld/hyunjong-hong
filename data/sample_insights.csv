@@ -1,0 +1,8 @@
+date_start,spend,reach,impressions,frequency,clicks,ctr,cpc,link_clicks,landing_page_views,signups,purchases,purchase_value,platform_position,campaign_name,adset_name,ad_name
+2026-02-13,120,5000,10000,2.0,110,1.1,1.09,110,75,9,4,520,feed,Campaign A,Adset 1,Ad 1
+2026-02-14,140,5200,11000,2.1,120,1.09,1.17,120,80,8,5,700,reels,Campaign A,Adset 1,Ad 2
+2026-02-15,150,5400,12000,2.4,125,1.04,1.20,125,82,8,4,600,feed,Campaign A,Adset 2,Ad 3
+2026-02-16,170,5500,13000,2.7,128,0.98,1.33,128,84,7,4,590,reels,Campaign B,Adset 3,Ad 4
+2026-02-17,185,5600,14000,3.1,130,0.93,1.42,130,86,7,3,510,feed,Campaign B,Adset 3,Ad 5
+2026-02-18,200,5800,15000,3.4,132,0.88,1.52,132,87,6,3,500,feed,Campaign B,Adset 4,Ad 6
+2026-02-19,220,5900,15500,3.8,134,0.82,1.64,134,88,6,2,360,feed,Campaign C,Adset 5,Ad 7
