@@ -1,0 +1,2 @@
+# MVP scripts use Python standard library only.
+# Add optional packages if needed for production integration.

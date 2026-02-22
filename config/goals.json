@@ -1,0 +1,127 @@
+{
+  "version": "1.0.0",
+  "default_goal": "purchase",
+  "goals": {
+    "follow": {
+      "label": "Follow",
+      "primary_kpis": ["profile_visits", "follows", "ctr", "cpc", "frequency"],
+      "derived_metrics": {
+        "cpa_follow": "spend / max(follows, 1)",
+        "profile_to_follow_cvr": "follows / max(profile_visits, 1)"
+      },
+      "thresholds": {
+        "ctr_drop_pct": 20,
+        "cpc_rise_pct": 20,
+        "frequency_max": 2.8,
+        "profile_to_follow_cvr_min": 0.08
+      },
+      "diagnostic_rules": [
+        {
+          "id": "creative_low_ctr",
+          "when": "ctr < rolling_7d_ctr * 0.8",
+          "root_cause": "소재 문제(CTR 낮음)",
+          "action_template": "최근 14일 상위 CTR 소재에서 Hook/첫 3초/카피를 복제하고, 하위 20% 소재는 중단 또는 리프레시하세요."
+        },
+        {
+          "id": "over_frequency",
+          "when": "frequency > 2.8 and ctr < rolling_7d_ctr",
+          "root_cause": "과노출 문제(Frequency 과다 + CTR 하락)",
+          "action_template": "오디언스를 확장(유사/브로드)하고 빈도 캡을 점검하세요. 크리에이티브를 2~3개 추가해 피로도를 낮추세요."
+        }
+      ]
+    },
+    "signup": {
+      "label": "Signup",
+      "primary_kpis": ["signups", "cpa_signup", "cvr", "cpc", "landing_page_views"],
+      "derived_metrics": {
+        "cpa_signup": "spend / max(signups, 1)",
+        "cvr": "signups / max(link_clicks, 1)",
+        "lpv_to_signup_cvr": "signups / max(landing_page_views, 1)"
+      },
+      "thresholds": {
+        "ctr_drop_pct": 20,
+        "cpc_rise_pct": 20,
+        "cpa_signup_rise_pct": 25,
+        "lpv_to_signup_cvr_min": 0.1,
+        "frequency_max": 3.0
+      },
+      "diagnostic_rules": [
+        {
+          "id": "targeting_low_cvr",
+          "when": "cvr < rolling_7d_cvr * 0.8",
+          "root_cause": "타겟 문제(CVR 낮음)",
+          "action_template": "연령/성별/지역 분해에서 CVR 상위 세그먼트로 예산을 이동하고, 하위 세그먼트는 입찰을 낮추세요."
+        },
+        {
+          "id": "funnel_low_lpv_to_signup",
+          "when": "lpv_to_signup_cvr < 0.1",
+          "root_cause": "랜딩/퍼널 문제(LPV 대비 전환 낮음)",
+          "action_template": "랜딩 첫 화면 메시지와 광고 메시지 정합성을 맞추고, 가입 폼 입력 단계를 축소하세요."
+        }
+      ]
+    },
+    "purchase": {
+      "label": "Purchase",
+      "primary_kpis": ["purchases", "roas", "cpa_purchase", "cvr", "aov"],
+      "derived_metrics": {
+        "cpa_purchase": "spend / max(purchases, 1)",
+        "cvr": "purchases / max(link_clicks, 1)",
+        "roas": "purchase_value / max(spend, 1)",
+        "aov": "purchase_value / max(purchases, 1)"
+      },
+      "thresholds": {
+        "ctr_drop_pct": 20,
+        "cpc_rise_pct": 20,
+        "cpa_purchase_rise_pct": 25,
+        "roas_min": 1.5,
+        "frequency_max": 3.5
+      },
+      "diagnostic_rules": [
+        {
+          "id": "creative_low_ctr",
+          "when": "ctr < rolling_7d_ctr * 0.8",
+          "root_cause": "소재 문제(CTR 낮음)",
+          "action_template": "CTR 상위 소재 포맷으로 리패키징하고, 하위 소재는 새 썸네일/첫컷으로 교체하세요."
+        },
+        {
+          "id": "targeting_low_cvr",
+          "when": "cvr < rolling_7d_cvr * 0.8",
+          "root_cause": "타겟 문제(CVR 낮음)",
+          "action_template": "구매 CVR 상위 오디언스에 예산을 증액하고 하위 오디언스는 축소하세요."
+        },
+        {
+          "id": "placement_reallocation",
+          "when": "reels_cpa < feed_cpa and reels_spend_share < 0.35",
+          "root_cause": "게재위치 문제(성과 좋은 Reels 예산 부족)",
+          "action_template": "Feed 예산의 10~20%를 Reels로 이동해 3일 A/B 검증 후 유지 여부를 결정하세요."
+        },
+        {
+          "id": "over_frequency",
+          "when": "frequency > 3.5 and ctr < rolling_7d_ctr",
+          "root_cause": "과노출 문제",
+          "action_template": "Frequency 캡/오디언스 확장/신규 소재 투입으로 피로도 해소를 우선 수행하세요."
+        }
+      ]
+    }
+  },
+  "global_alerts": [
+    {
+      "id": "ctr_drop",
+      "when": "ctr < rolling_7d_ctr * 0.8",
+      "severity": "high",
+      "message": "CTR이 7일 평균 대비 20% 이상 하락했습니다."
+    },
+    {
+      "id": "cpc_spike",
+      "when": "cpc > rolling_7d_cpc * 1.2",
+      "severity": "high",
+      "message": "CPC가 7일 평균 대비 20% 이상 상승했습니다."
+    },
+    {
+      "id": "over_frequency",
+      "when": "frequency > frequency_max and ctr < rolling_7d_ctr",
+      "severity": "medium",
+      "message": "빈도 과다 + CTR 하락으로 과노출 위험이 있습니다."
+    }
+  ]
+}
